@@ -1,0 +1,31 @@
+name: CI
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: opsgrid
+          POSTGRES_USER: opsgrid
+          POSTGRES_PASSWORD: opsgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opsgrid -d opsgrid"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Test
+        run: ./gradlew test
