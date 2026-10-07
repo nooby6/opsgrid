@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: opsgrid-postgres
+    environment:
+      POSTGRES_DB: opsgrid
+      POSTGRES_USER: opsgrid
+      POSTGRES_PASSWORD: opsgrid
+    ports:
+      - "5432:5432"
+    volumes:
+      - opsgrid_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opsgrid -d opsgrid"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  opsgrid_pgdata:
