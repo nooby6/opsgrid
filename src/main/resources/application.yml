@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: opsgrid
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/opsgrid}
+    username: ${DATABASE_USERNAME:opsgrid}
+    password: ${DATABASE_PASSWORD:opsgrid}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+server:
+  port: ${PORT:8080}
