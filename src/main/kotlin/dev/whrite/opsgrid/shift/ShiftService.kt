@@ -1,6 +1,7 @@
 package dev.whrite.opsgrid.shift
 
 import dev.whrite.opsgrid.employee.EmployeeRepository
+import dev.whrite.opsgrid.leave.EmployeeLeaveRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.OffsetDateTime
@@ -13,14 +14,14 @@ class EmployeeNotFoundException(message: String) : RuntimeException(message)
 class ShiftNotFoundException(message: String) : RuntimeException(message)
 
 @Service
-class ShiftService(private val employees: EmployeeRepository, private val shifts: ShiftRepository) {
+class ShiftService(private val employees: EmployeeRepository, private val shifts: ShiftRepository, private val leaves: EmployeeLeaveRepository) {
     @Transactional
     fun schedule(command: CreateShiftCommand): Shift {
         validateWindow(command.startsAt, command.endsAt)
         val employee = employees.findById(command.employeeId).orElseThrow { EmployeeNotFoundException("Employee "+command.employeeId+" was not found") }
         check(employee.active) { "Inactive employees cannot be scheduled" }
-        if (shifts.hasConflict(employee.id, command.startsAt, command.endsAt)) {
-            throw ShiftConflictException("Employee "+employee.employeeNumber+" already has a shift overlapping this time window")
+        if (shifts.hasConflict(employee.id, command.startsAt, command.endsAt) || leaves.hasConflict(employee.id, command.startsAt, command.endsAt)) {
+            throw ShiftConflictException("Employee "+employee.employeeNumber+" has a scheduling conflict in this time window")
         }
         return shifts.save(Shift(UUID.randomUUID(), employee, command.startsAt, command.endsAt))
     }
