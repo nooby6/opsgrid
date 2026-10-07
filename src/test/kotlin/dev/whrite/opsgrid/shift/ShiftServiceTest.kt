@@ -1,6 +1,7 @@
 package dev.whrite.opsgrid.shift
 import dev.whrite.opsgrid.employee.Employee
 import dev.whrite.opsgrid.employee.EmployeeRepository
+import dev.whrite.opsgrid.leave.EmployeeLeaveRepository
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
@@ -11,7 +12,8 @@ import kotlin.test.assertEquals
 class ShiftServiceTest {
     private val employees = mock<EmployeeRepository>()
     private val shifts = mock<ShiftRepository>()
-    private val service = ShiftService(employees, shifts)
+    private val leaves = mock<EmployeeLeaveRepository>()
+    private val service = ShiftService(employees, shifts, leaves)
 
     @Test
     fun rejectsOverlappingScheduledShift() {
@@ -19,6 +21,7 @@ class ShiftServiceTest {
         val employee = Employee(employeeId, "EMP-001", "Ada", "Lovelace", "Operations")
         whenever(employees.findById(employeeId)).thenReturn(Optional.of(employee))
         whenever(shifts.hasConflict(any(), any(), any())).thenReturn(true)
+        whenever(leaves.hasConflict(any(), any(), any())).thenReturn(false)
         val ex = assertThrows(ShiftConflictException::class.java) {
             service.schedule(CreateShiftCommand(
                 employeeId,
@@ -36,6 +39,7 @@ class ShiftServiceTest {
         val employee = Employee(employeeId, "EMP-002", "Grace", "Hopper", "Engineering")
         whenever(employees.findById(employeeId)).thenReturn(Optional.of(employee))
         whenever(shifts.hasConflict(any(), any(), any())).thenReturn(false)
+        whenever(leaves.hasConflict(any(), any(), any())).thenReturn(false)
         whenever(shifts.save(any())).thenAnswer { it.arguments[0] as Shift }
         val shift = service.schedule(CreateShiftCommand(
             employeeId,
