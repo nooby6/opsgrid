@@ -2,13 +2,14 @@ package dev.whrite.opsgrid.shift
 import dev.whrite.opsgrid.employee.Employee
 import dev.whrite.opsgrid.employee.EmployeeRepository
 import dev.whrite.opsgrid.leave.EmployeeLeaveRepository
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.*
 import java.time.OffsetDateTime
 import java.util.Optional
 import java.util.UUID
-import kotlin.test.assertEquals
+
 class ShiftServiceTest {
     private val employees = mock<EmployeeRepository>()
     private val shifts = mock<ShiftRepository>()
