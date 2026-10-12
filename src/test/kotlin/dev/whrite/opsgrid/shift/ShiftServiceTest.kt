@@ -30,7 +30,7 @@ class ShiftServiceTest {
                 OffsetDateTime.parse("2026-10-06T16:00:00+03:00")
             ))
         }
-        assertEquals("Employee EMP-001 already has a shift overlapping this time window", ex.message)
+        assertEquals("Employee EMP-001 has a scheduling conflict in this time window", ex.message)
         verify(shifts, never()).save(any())
     }
 

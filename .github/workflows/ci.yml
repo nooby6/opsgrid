@@ -6,6 +6,10 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      TEST_DATABASE_URL: jdbc:postgresql://localhost:5432/opsgrid
+      TEST_DATABASE_USER: opsgrid
+      TEST_DATABASE_PASSWORD: opsgrid
     services:
       postgres:
         image: postgres:17
