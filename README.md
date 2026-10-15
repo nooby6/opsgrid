@@ -6,7 +6,7 @@ The project focuses on operational scheduling problems rather than generic CRUD:
 
 ## Current milestone
 
-Milestone 1 — Domain & Infrastructure
+Milestone 2 — Scheduling consistency (in progress)
 
 Implemented:
 - Kotlin + Spring Boot
@@ -17,9 +17,11 @@ Implemented:
 - Employee and shift domains
 - REST API foundation
 - Transactional shift scheduling
-- Overlap conflict detection
+- Service-layer overlap checks for clear API errors
+- PostgreSQL exclusion constraints for scheduled shifts and approved leave
+- Concurrent PostgreSQL integration test: two overlapping inserts yield exactly one commit and one `23P01` exclusion violation
 - Validation and API error handling
-- Unit tests
+- Unit and integration tests
 - GitHub Actions CI
 
 ## Core scheduling rule
@@ -54,7 +56,7 @@ The API starts on port 8080.
 
     gradle test
 
-The current suite covers the core scheduling rule at the service boundary. CI runs the test suite against PostgreSQL.
+The service checks provide a useful conflict response, but they are not the concurrency boundary. PostgreSQL enforces the invariant with GiST exclusion constraints using `tstzrange(..., '[)')`; the half-open range allows adjacent shifts while rejecting overlaps. Migration `V3__schedule_consistency.sql` applies these constraints to scheduled shifts and approved leave. `ConcurrentShiftConflictIntegrationTest` synchronizes two transactions and asserts exactly one insert commits.
 
 ## Roadmap
 
@@ -64,7 +66,8 @@ The current suite covers the core scheduling rule at the service boundary. CI ru
 - leave and time-off
 - department constraints
 - schedule queries
-- stronger database-level consistency
+- map PostgreSQL exclusion violations to HTTP 409 consistently for create and update paths
+- extend integration coverage to concurrent updates and leave/shift interactions
 
 ### Milestone 3 — Workforce Operations
 - shift swaps
@@ -102,4 +105,4 @@ The current suite covers the core scheduling rule at the service boundary. CI ru
 
 OpsGrid is deliberately being built as a backend engineering project. The target is a system where correctness matters: schedules affect people, conflicts have operational consequences, and distributed workflows must remain consistent when requests are retried or services fail.
 
-The project favours explicit domain rules, transactional boundaries, meaningful tests and operational visibility over framework-heavy abstractions.
+The project favours explicit domain rules, transactional boundaries, meaningful tests and operational visibility over framework-heavy abstractions. The database is the final authority for overlap prevention; service-layer checks alone are insufficient under concurrent requests.
