@@ -4,4 +4,8 @@ out/
 .idea/
 *.iml
 .DS_Store
+
+# Local environment files. Keep only a committed template if one is added.
 .env
+.env.*
+!.env.example
