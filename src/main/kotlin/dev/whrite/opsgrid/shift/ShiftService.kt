@@ -1,5 +1,6 @@
 package dev.whrite.opsgrid.shift
 
+import dev.whrite.opsgrid.audit.AuditLogService
 import dev.whrite.opsgrid.employee.EmployeeRepository
 import dev.whrite.opsgrid.leave.EmployeeLeaveRepository
 import org.springframework.stereotype.Service
@@ -18,10 +19,11 @@ class ShiftNotFoundException(message: String) : RuntimeException(message)
 class ShiftService(
     private val employees: EmployeeRepository,
     private val shifts: ShiftRepository,
-    private val leaves: EmployeeLeaveRepository
+    private val leaves: EmployeeLeaveRepository,
+    private val auditLog: AuditLogService
 ) {
     @Transactional
-    fun schedule(command: CreateShiftCommand): Shift {
+    fun schedule(command: CreateShiftCommand, actorId: String): Shift {
         validateWindow(command.startsAt, command.endsAt)
         val employee = employees.findById(command.employeeId)
             .orElseThrow { EmployeeNotFoundException("Employee ${command.employeeId} was not found") }
@@ -35,11 +37,14 @@ class ShiftService(
                 "Employee ${employee.employeeNumber} has a scheduling conflict in this time window"
             )
         }
-        return shifts.save(Shift(UUID.randomUUID(), employee, command.startsAt, command.endsAt))
+
+        val shift = shifts.save(Shift(UUID.randomUUID(), employee, command.startsAt, command.endsAt))
+        auditLog.record(actorId, "SHIFT_CREATED", "SHIFT", shift.id, null, snapshot(shift))
+        return shift
     }
 
     @Transactional
-    fun update(id: UUID, command: UpdateShiftCommand): Shift {
+    fun update(id: UUID, command: UpdateShiftCommand, actorId: String): Shift {
         validateWindow(command.startsAt, command.endsAt)
         val shift = shifts.findById(id)
             .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
@@ -62,17 +67,23 @@ class ShiftService(
             )
         }
 
+        val before = snapshot(shift)
         shift.startsAt = command.startsAt
         shift.endsAt = command.endsAt
-        return shifts.save(shift)
+        val updated = shifts.save(shift)
+        auditLog.record(actorId, "SHIFT_UPDATED", "SHIFT", updated.id, before, snapshot(updated))
+        return updated
     }
 
     @Transactional
-    fun cancel(id: UUID): Shift {
+    fun cancel(id: UUID, actorId: String): Shift {
         val shift = shifts.findById(id)
             .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
+        val before = snapshot(shift)
         shift.status = ShiftStatus.CANCELLED
-        return shifts.save(shift)
+        val cancelled = shifts.save(shift)
+        auditLog.record(actorId, "SHIFT_CANCELLED", "SHIFT", cancelled.id, before, snapshot(cancelled))
+        return cancelled
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +106,13 @@ class ShiftService(
             startsAt
         )
     }
+
+    private fun snapshot(shift: Shift) = mapOf(
+        "employeeId" to shift.employee.id,
+        "startsAt" to shift.startsAt,
+        "endsAt" to shift.endsAt,
+        "status" to shift.status.name
+    )
 
     private fun validateWindow(startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
         require(endsAt.isAfter(startsAt)) { "Shift end time must be after start time" }
