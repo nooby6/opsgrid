@@ -20,6 +20,9 @@ Implemented:
 - Service-layer overlap checks for clear API errors
 - PostgreSQL exclusion constraints for scheduled shifts and approved leave
 - Concurrent PostgreSQL integration test: two overlapping inserts yield exactly one commit and one `23P01` exclusion violation
+- Audit events for shift creation, updates, cancellation, leave approval and leave cancellation
+- Before/after state snapshots stored as JSONB, with actor and timestamp
+- Audit writes participate in the same transaction as the business mutation
 - Validation and API error handling
 - Unit and integration tests
 - GitHub Actions CI
@@ -34,11 +37,15 @@ Touching shifts are valid. Overlapping windows are rejected.
 
 ## API
 
-Create an employee with POST /api/v1/employees.
+Create an employee with `POST /api/v1/employees`.
 
-Schedule a shift with POST /api/v1/shifts.
+Schedule a shift with `POST /api/v1/shifts`. Update and cancel shifts with `PUT /api/v1/shifts/{id}` and `DELETE /api/v1/shifts/{id}`.
 
-A scheduling conflict returns HTTP 409 with code SHIFT_CONFLICT.
+Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`.
+
+Mutation requests must include an `X-Actor-Id` header. The value is recorded for audit attribution. **It is not authentication**: until authentication and role-based access control are implemented, a caller can supply an arbitrary actor value. Do not expose mutation endpoints to untrusted clients based on this header alone.
+
+A scheduling conflict returns HTTP 409 with code `SHIFT_CONFLICT`; invalid time windows return HTTP 400.
 
 ## Run locally
 
@@ -58,6 +65,8 @@ The API starts on port 8080.
 
 The service checks provide a useful conflict response, but they are not the concurrency boundary. PostgreSQL enforces the invariant with GiST exclusion constraints using `tstzrange(..., '[)')`; the half-open range allows adjacent shifts while rejecting overlaps. Migration `V3__schedule_consistency.sql` applies these constraints to scheduled shifts and approved leave. `ConcurrentShiftConflictIntegrationTest` synchronizes two transactions and asserts exactly one insert commits.
 
+Migration `V4__audit_events.sql` adds the audit event table. Audit writes use the same transaction as each shift or leave mutation, so a failed mutation or failed audit write rolls back the whole operation. Integration tests verify that behaviour.
+
 ## Roadmap
 
 ### Milestone 2 — Scheduling Engine
@@ -74,7 +83,6 @@ The service checks provide a useful conflict response, but they are not the conc
 - approval workflows
 - overtime tracking
 - workload calculations
-- audit log
 
 ### Milestone 4 — Distributed Processing
 - Redis
