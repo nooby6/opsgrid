@@ -11,45 +11,92 @@ data class CreateShiftCommand(val employeeId: UUID, val startsAt: OffsetDateTime
 data class UpdateShiftCommand(val startsAt: OffsetDateTime, val endsAt: OffsetDateTime)
 class ShiftConflictException(message: String) : RuntimeException(message)
 class EmployeeNotFoundException(message: String) : RuntimeException(message)
+class EmployeeInactiveException(message: String) : RuntimeException(message)
 class ShiftNotFoundException(message: String) : RuntimeException(message)
 
 @Service
-class ShiftService(private val employees: EmployeeRepository, private val shifts: ShiftRepository, private val leaves: EmployeeLeaveRepository) {
+class ShiftService(
+    private val employees: EmployeeRepository,
+    private val shifts: ShiftRepository,
+    private val leaves: EmployeeLeaveRepository
+) {
     @Transactional
     fun schedule(command: CreateShiftCommand): Shift {
         validateWindow(command.startsAt, command.endsAt)
-        val employee = employees.findById(command.employeeId).orElseThrow { EmployeeNotFoundException("Employee "+command.employeeId+" was not found") }
-        check(employee.active) { "Inactive employees cannot be scheduled" }
-        if (shifts.hasConflict(employee.id, command.startsAt, command.endsAt) || leaves.hasConflict(employee.id, command.startsAt, command.endsAt)) {
-            throw ShiftConflictException("Employee "+employee.employeeNumber+" has a scheduling conflict in this time window")
+        val employee = employees.findById(command.employeeId)
+            .orElseThrow { EmployeeNotFoundException("Employee ${command.employeeId} was not found") }
+        if (!employee.active) {
+            throw EmployeeInactiveException("Inactive employees cannot be scheduled")
+        }
+        if (shifts.hasConflict(employee.id, command.startsAt, command.endsAt) ||
+            leaves.hasConflict(employee.id, command.startsAt, command.endsAt)
+        ) {
+            throw ShiftConflictException(
+                "Employee ${employee.employeeNumber} has a scheduling conflict in this time window"
+            )
         }
         return shifts.save(Shift(UUID.randomUUID(), employee, command.startsAt, command.endsAt))
     }
+
     @Transactional
     fun update(id: UUID, command: UpdateShiftCommand): Shift {
         validateWindow(command.startsAt, command.endsAt)
-        val shift = shifts.findById(id).orElseThrow { ShiftNotFoundException("Shift "+id+" was not found") }
+        val shift = shifts.findById(id)
+            .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
         check(shift.status == ShiftStatus.SCHEDULED) { "Cancelled shifts cannot be updated" }
-        if (shifts.hasConflict(shift.employee.id, command.startsAt, command.endsAt, shift.id)) {
-            throw ShiftConflictException("Employee "+shift.employee.employeeNumber+" already has a shift overlapping this time window")
+
+        val hasShiftConflict = shifts.hasConflict(
+            shift.employee.id,
+            command.startsAt,
+            command.endsAt,
+            shift.id
+        )
+        val hasLeaveConflict = leaves.hasConflict(
+            shift.employee.id,
+            command.startsAt,
+            command.endsAt
+        )
+        if (hasShiftConflict || hasLeaveConflict) {
+            throw ShiftConflictException(
+                "Employee ${shift.employee.employeeNumber} has a scheduling conflict in this time window"
+            )
         }
+
         shift.startsAt = command.startsAt
         shift.endsAt = command.endsAt
         return shifts.save(shift)
     }
+
     @Transactional
     fun cancel(id: UUID): Shift {
-        val shift = shifts.findById(id).orElseThrow { ShiftNotFoundException("Shift "+id+" was not found") }
+        val shift = shifts.findById(id)
+            .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
         shift.status = ShiftStatus.CANCELLED
         return shifts.save(shift)
     }
+
     @Transactional(readOnly = true)
-    fun find(id: UUID): Shift = shifts.findById(id).orElseThrow { ShiftNotFoundException("Shift "+id+" was not found") }
+    fun find(id: UUID): Shift = shifts.findById(id)
+        .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
+
     @Transactional(readOnly = true)
-    fun findEmployeeSchedule(employeeId: UUID, startsAt: OffsetDateTime, endsAt: OffsetDateTime): List<Shift> {
+    fun findEmployeeSchedule(
+        employeeId: UUID,
+        startsAt: OffsetDateTime,
+        endsAt: OffsetDateTime
+    ): List<Shift> {
         validateWindow(startsAt, endsAt)
-        if (!employees.existsById(employeeId)) throw EmployeeNotFoundException("Employee "+employeeId+" was not found")
-        return shifts.findAllByEmployeeIdAndStartsAtLessThanAndEndsAtGreaterThanOrderByStartsAtAsc(employeeId, endsAt, startsAt)
+        if (!employees.existsById(employeeId)) {
+            throw EmployeeNotFoundException("Employee $employeeId was not found")
+        }
+        return shifts.findAllByEmployeeIdAndStartsAtLessThanAndEndsAtGreaterThanOrderByStartsAtAsc(
+            employeeId,
+            endsAt,
+            startsAt
+        )
     }
-    private fun validateWindow(startsAt: OffsetDateTime, endsAt: OffsetDateTime) { require(endsAt.isAfter(startsAt)) { "Shift end time must be after start time" } }
+
+    private fun validateWindow(startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
+        require(endsAt.isAfter(startsAt)) { "Shift end time must be after start time" }
+    }
 }
