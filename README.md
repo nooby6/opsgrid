@@ -18,8 +18,9 @@ Implemented:
 - REST API foundation
 - Transactional shift scheduling
 - Service-layer overlap checks for clear API errors
-- PostgreSQL exclusion constraints for scheduled shifts and approved leave
-- Concurrent PostgreSQL integration test: two overlapping inserts yield exactly one commit and one `23P01` exclusion violation
+- PostgreSQL exclusion constraints for overlapping shifts and overlapping approved leave
+- Cross-table trigger guards prevent a scheduled shift from overlapping approved leave (and vice versa), using a transaction-scoped per-employee advisory lock
+- Concurrent PostgreSQL integration tests prove same-table and cross-table overlapping scheduling writes cannot both commit
 - Audit events for shift creation, updates, cancellation, leave approval and leave cancellation
 - Before/after state snapshots stored as JSONB, with actor and timestamp
 - Audit writes participate in the same transaction as the business mutation
@@ -73,7 +74,7 @@ The API starts on port 8080.
 
 The service checks provide a useful conflict response, but they are not the concurrency boundary. PostgreSQL enforces the invariant with GiST exclusion constraints using `tstzrange(..., '[)')`; the half-open range allows adjacent shifts while rejecting overlaps. Migration `V3__schedule_consistency.sql` applies these constraints to scheduled shifts and approved leave. `ConcurrentShiftConflictIntegrationTest` synchronizes two transactions and asserts exactly one insert commits.
 
-Migration `V4__audit_events.sql` adds the audit event table. Audit writes use the same transaction as each shift or leave mutation, so a failed mutation or failed audit write rolls back the whole operation. Integration tests verify that behaviour.
+Migration `V4__audit_events.sql` adds the audit event table. Migration `V5__prevent_shift_leave_overlap.sql` closes the cross-table race between shift creation/update and leave approval by serializing each employee's scheduling writes inside PostgreSQL and checking the opposite table before commit. Audit writes use the same transaction as each shift or leave mutation, so a failed mutation or failed audit write rolls back the whole operation. Integration tests verify that behaviour.
 
 ## Roadmap
 
