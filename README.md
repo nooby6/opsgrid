@@ -23,7 +23,7 @@ Implemented:
 - Audit events for shift creation, updates, cancellation, leave approval and leave cancellation
 - Before/after state snapshots stored as JSONB, with actor and timestamp
 - Audit writes participate in the same transaction as the business mutation
-- Validation and API error handling
+- Validation and API error handling, including PostgreSQL exclusion violations mapped to stable HTTP 409 responses
 - Unit and integration tests
 - GitHub Actions CI
 
@@ -83,7 +83,6 @@ Migration `V4__audit_events.sql` adds the audit event table. Audit writes use th
 - leave and time-off
 - department constraints
 - schedule queries
-- map PostgreSQL exclusion violations to HTTP 409 consistently for create and update paths
 - extend integration coverage to concurrent updates and leave/shift interactions
 
 ### Milestone 3 — Workforce Operations
