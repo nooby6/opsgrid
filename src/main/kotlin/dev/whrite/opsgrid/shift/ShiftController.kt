@@ -3,6 +3,9 @@ package dev.whrite.opsgrid.shift
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotNull
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
+import dev.whrite.opsgrid.security.requireActorId
 import org.springframework.web.bind.annotation.*
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -32,11 +35,11 @@ class ShiftController(private val service: ShiftService) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
-        @RequestHeader("X-Actor-Id") actorId: String,
+        @AuthenticationPrincipal jwt: Jwt,
         @Valid @RequestBody request: CreateShiftRequest
     ) = service.schedule(
         CreateShiftCommand(request.employeeId!!, request.startsAt!!, request.endsAt!!),
-        actorId
+        jwt.requireActorId()
     ).toResponse()
 
     @GetMapping("/{id}")
@@ -45,19 +48,19 @@ class ShiftController(private val service: ShiftService) {
     @PutMapping("/{id}")
     fun update(
         @PathVariable id: UUID,
-        @RequestHeader("X-Actor-Id") actorId: String,
+        @AuthenticationPrincipal jwt: Jwt,
         @Valid @RequestBody request: UpdateShiftRequest
     ) = service.update(
         id,
         UpdateShiftCommand(request.startsAt!!, request.endsAt!!),
-        actorId
+        jwt.requireActorId()
     ).toResponse()
 
     @DeleteMapping("/{id}")
     fun cancel(
         @PathVariable id: UUID,
-        @RequestHeader("X-Actor-Id") actorId: String
-    ) = service.cancel(id, actorId).toResponse()
+        @AuthenticationPrincipal jwt: Jwt
+    ) = service.cancel(id, jwt.requireActorId()).toResponse()
 
     @GetMapping("/employee/{employeeId}")
     fun schedule(

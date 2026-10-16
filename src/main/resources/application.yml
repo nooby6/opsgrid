@@ -12,5 +12,12 @@ spring:
   flyway:
     enabled: true
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${JWT_ISSUER_URI:http://localhost:8081/realms/opsgrid}
+          jwk-set-uri: ${JWT_JWK_SET_URI:http://localhost:8081/realms/opsgrid/protocol/openid-connect/certs}
+
 server:
   port: ${PORT:8080}
