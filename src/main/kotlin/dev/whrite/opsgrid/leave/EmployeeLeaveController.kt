@@ -4,6 +4,9 @@ import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
 import org.springframework.http.HttpStatus
+import org.springframework.security.core.annotation.AuthenticationPrincipal
+import org.springframework.security.oauth2.jwt.Jwt
+import dev.whrite.opsgrid.security.requireActorId
 import org.springframework.web.bind.annotation.*
 import java.time.OffsetDateTime
 import java.util.UUID
@@ -30,11 +33,11 @@ class EmployeeLeaveController(private val service: EmployeeLeaveService) {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(
-        @RequestHeader("X-Actor-Id") actorId: String,
+        @AuthenticationPrincipal jwt: Jwt,
         @Valid @RequestBody request: CreateLeaveRequest
     ) = service.approve(
         CreateLeaveCommand(request.employeeId!!, request.startsAt!!, request.endsAt!!, request.reason),
-        actorId
+        jwt.requireActorId()
     ).toResponse()
 
     @GetMapping("/{id}")
@@ -43,8 +46,8 @@ class EmployeeLeaveController(private val service: EmployeeLeaveService) {
     @DeleteMapping("/{id}")
     fun cancel(
         @PathVariable id: UUID,
-        @RequestHeader("X-Actor-Id") actorId: String
-    ) = service.cancel(id, actorId).toResponse()
+        @AuthenticationPrincipal jwt: Jwt
+    ) = service.cancel(id, jwt.requireActorId()).toResponse()
 }
 
 private fun EmployeeLeave.toResponse() =
