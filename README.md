@@ -43,7 +43,15 @@ Schedule a shift with `POST /api/v1/shifts`. Update and cancel shifts with `PUT 
 
 Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`.
 
-Mutation requests must include an `X-Actor-Id` header. The value is recorded for audit attribution. **It is not authentication**: until authentication and role-based access control are implemented, a caller can supply an arbitrary actor value. Do not expose mutation endpoints to untrusted clients based on this header alone.
+All API routes require a valid bearer access token from an OpenID Connect provider. Configure `JWT_ISSUER_URI` and `JWT_JWK_SET_URI`; the defaults point to a local Keycloak realm placeholder and do not provision an identity provider. Shift and leave audit records use the authenticated token's `sub` claim. The API no longer trusts a caller-supplied `X-Actor-Id` header.
+
+Role claims are read from either a top-level `roles` array or Keycloak's `realm_access.roles` array. Required roles:
+- `POST /api/v1/employees`: `ADMIN` or `HR`
+- Create, update and cancel shifts: `ADMIN` or `SCHEDULER`
+- Create and cancel leave: `ADMIN` or `HR`
+- Read endpoints: any authenticated user
+
+The API is stateless and validates JWT signatures using the configured JWK set, plus the configured issuer. Role names are mapped to Spring authorities such as `ROLE_SCHEDULER`. This repository configures the resource server; you must still provision an identity provider, users, clients, and role assignments in your deployment.
 
 A scheduling conflict returns HTTP 409 with code `SHIFT_CONFLICT`; invalid time windows return HTTP 400.
 
