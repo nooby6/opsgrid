@@ -24,6 +24,8 @@ Implemented:
 - Audit events for shift creation, updates, cancellation, leave approval and leave cancellation
 - Before/after state snapshots stored as JSONB, with actor and timestamp
 - Audit writes participate in the same transaction as the business mutation
+- Stateless JWT resource-server authentication with role-based authorization for employee, shift and leave mutations
+- Shift and leave audit actors come from the validated JWT subject rather than a caller-controlled header
 - Validation and API error handling, including PostgreSQL exclusion violations mapped to stable HTTP 409 responses
 - Unit and integration tests
 - GitHub Actions CI
@@ -84,7 +86,7 @@ Migration `V4__audit_events.sql` adds the audit event table. Migration `V5__prev
 - leave and time-off
 - department constraints
 - schedule queries
-- extend integration coverage to concurrent updates and leave/shift interactions
+- expand scheduling constraints to cover employee availability and department rules
 
 ### Milestone 3 — Workforce Operations
 - shift swaps
@@ -108,7 +110,7 @@ Migration `V4__audit_events.sql` adds the audit event table. Migration `V5__prev
 - scheduling constraints
 
 ### Milestone 6 — Production Engineering
-- authentication and RBAC
+- provision and operate the OIDC identity provider, clients, users, role assignments and key rotation for each deployment
 - observability
 - metrics
 - tracing
