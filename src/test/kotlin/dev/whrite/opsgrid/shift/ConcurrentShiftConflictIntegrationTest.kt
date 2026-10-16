@@ -38,6 +38,11 @@ class ConcurrentShiftConflictIntegrationTest {
                     "V3__schedule_consistency.sql"
                 ).forEach { migration -> executeMigration(connection, migration) }
 
+                val crossTableMigration = Files.readString(
+                    Path.of("src/main/resources/db/migration/V5__prevent_shift_leave_overlap.sql")
+                )
+                connection.createStatement().use { it.execute(crossTableMigration) }
+
                 connection.prepareStatement(
                     """INSERT INTO employees (id, employee_number, first_name, last_name, department, active)
                        VALUES (?, ?, ?, ?, ?, TRUE)"""
