@@ -84,7 +84,6 @@ Migration `V4__audit_events.sql` adds the audit event table. Audit writes use th
 - department constraints
 - schedule queries
 - extend integration coverage to concurrent updates and leave/shift interactions
-- extend integration coverage to concurrent updates and leave/shift interactions
 
 ### Milestone 3 — Workforce Operations
 - shift swaps
