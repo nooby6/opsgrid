@@ -1,5 +1,7 @@
 package dev.whrite.opsgrid.api
 
+import dev.whrite.opsgrid.leave.LeaveEmployeeInactiveException
+import dev.whrite.opsgrid.leave.LeaveEmployeeNotFoundException
 import org.hibernate.exception.ConstraintViolationException
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -43,6 +45,27 @@ class ApiExceptionHandlerTest {
             "The request violates a data integrity constraint",
             response.body?.message
         )
+    }
+
+
+    @Test
+    fun mapsMissingEmployeeDuringLeaveApprovalToNotFound() {
+        val error = handler.leaveEmployeeNotFound(
+            LeaveEmployeeNotFoundException("Employee was not found")
+        )
+
+        assertEquals("EMPLOYEE_NOT_FOUND", error.code)
+        assertEquals("Employee was not found", error.message)
+    }
+
+    @Test
+    fun mapsInactiveEmployeeDuringLeaveApprovalToConflict() {
+        val error = handler.inactiveLeaveEmployee(
+            LeaveEmployeeInactiveException("Inactive employees cannot receive leave")
+        )
+
+        assertEquals("EMPLOYEE_INACTIVE", error.code)
+        assertEquals("Inactive employees cannot receive leave", error.message)
     }
 
     private fun dataIntegrityFailure(sqlState: String, constraint: String) =
