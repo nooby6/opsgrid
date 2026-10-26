@@ -107,6 +107,16 @@ class ShiftService(
         )
     }
 
+    @Transactional(readOnly = true)
+    fun findSchedule(startsAt: OffsetDateTime, endsAt: OffsetDateTime): List<Shift> {
+        validateWindow(startsAt, endsAt)
+        return shifts.findAllByStartsAtLessThanAndEndsAtGreaterThanAndStatusOrderByStartsAtAsc(
+            endsAt,
+            startsAt,
+            ShiftStatus.SCHEDULED
+        )
+    }
+
     private fun snapshot(shift: Shift) = mapOf(
         "employeeId" to shift.employee.id,
         "startsAt" to shift.startsAt,
