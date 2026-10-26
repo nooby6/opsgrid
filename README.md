@@ -21,6 +21,7 @@ Implemented:
 - PostgreSQL exclusion constraints for overlapping shifts and overlapping approved leave
 - Cross-table trigger guards prevent a scheduled shift from overlapping approved leave (and vice versa), using a transaction-scoped per-employee advisory lock
 - Concurrent PostgreSQL integration tests prove same-table and cross-table overlapping scheduling writes cannot both commit
+- Time-window schedule queries across employees, returning scheduled shifts in chronological order
 - Audit events for shift creation, updates, cancellation, leave approval and leave cancellation
 - Before/after state snapshots stored as JSONB, with actor and timestamp
 - Audit writes participate in the same transaction as the business mutation
@@ -43,6 +44,14 @@ Touching shifts are valid. Overlapping windows are rejected.
 Create an employee with `POST /api/v1/employees`.
 
 Schedule a shift with `POST /api/v1/shifts`. Update and cancel shifts with `PUT /api/v1/shifts/{id}` and `DELETE /api/v1/shifts/{id}`.
+
+Retrieve all scheduled shifts that overlap a time window with `GET /api/v1/shifts?startsAt=<ISO-8601>&endsAt=<ISO-8601>`. For example:
+
+    GET /api/v1/shifts?startsAt=2026-10-26T08:00:00%2B03:00&endsAt=2026-10-26T18:00:00%2B03:00
+
+The response is ordered by shift start time. A shift is included when it overlaps the requested window; cancelled shifts are excluded. Both timestamps are required and the end must be after the start.
+
+Retrieve one employee's schedule with `GET /api/v1/shifts/employee/{employeeId}?startsAt=<ISO-8601>&endsAt=<ISO-8601>`.
 
 Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`.
 
