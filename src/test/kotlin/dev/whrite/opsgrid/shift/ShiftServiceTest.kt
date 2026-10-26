@@ -24,6 +24,35 @@ class ShiftServiceTest {
     private val evening = OffsetDateTime.parse("2026-10-06T20:00:00+03:00")
 
     @Test
+    fun returnsScheduledShiftsOverlappingTheRequestedWindow() {
+        val employeeId = UUID.randomUUID()
+        val employee = employee(employeeId, "EMP-008")
+        val first = Shift(UUID.randomUUID(), employee, morning, afternoon)
+        val second = Shift(UUID.randomUUID(), employee, afternoon, evening)
+        whenever(
+            shifts.findAllByStartsAtLessThanAndEndsAtGreaterThanAndStatusOrderByStartsAtAsc(
+                evening, morning, ShiftStatus.SCHEDULED
+            )
+        ).thenReturn(listOf(first, second))
+
+        val result = service.findSchedule(morning, evening)
+
+        assertEquals(listOf(first, second), result)
+        verify(shifts).findAllByStartsAtLessThanAndEndsAtGreaterThanAndStatusOrderByStartsAtAsc(
+            evening, morning, ShiftStatus.SCHEDULED
+        )
+    }
+
+    @Test
+    fun rejectsInvalidScheduleQueryWindowBeforeRepositoryAccess() {
+        assertThrows(IllegalArgumentException::class.java) {
+            service.findSchedule(afternoon, morning)
+        }
+
+        verifyNoInteractions(employees, shifts, leaves, auditLog)
+    }
+
+    @Test
     fun rejectsOverlappingScheduledShift() {
         val employeeId = UUID.randomUUID()
         val employee = employee(employeeId, "EMP-001")
