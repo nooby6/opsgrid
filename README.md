@@ -94,8 +94,7 @@ Migration `V4__audit_events.sql` adds the audit event table. Migration `V5__prev
 - employee availability
 - leave and time-off
 - department constraints
-- schedule queries
-- expand scheduling constraints to cover employee availability and department rules
+- additional scheduling constraints for employee availability and department rules
 
 ### Milestone 3 — Workforce Operations
 - shift swaps
