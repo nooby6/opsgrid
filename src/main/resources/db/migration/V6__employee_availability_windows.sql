@@ -15,45 +15,24 @@ RETURNS trigger
 LANGUAGE plpgsql
 AS $$
 BEGIN
-    -- Both write paths take the same transaction-scoped employee lock.
+    -- Serialize availability and shift writes per employee. Existing shifts are
+    -- grandfathered when availability is first configured; subsequent shift
+    -- inserts/updates must fit inside a configured window.
     PERFORM pg_advisory_xact_lock(hashtextextended(NEW.employee_id::text, 0));
 
-    IF TG_TABLE_NAME = 'shifts' THEN
-        IF NEW.status = 'SCHEDULED' THEN
-            IF EXISTS (
-                SELECT 1 FROM employee_availability a
-                WHERE a.employee_id = NEW.employee_id
-            ) AND NOT EXISTS (
-                SELECT 1 FROM employee_availability a
-                WHERE a.employee_id = NEW.employee_id
-                  AND a.starts_at <= NEW.starts_at
-                  AND a.ends_at >= NEW.ends_at
-            ) THEN
-                RAISE EXCEPTION 'Scheduled shift falls outside employee availability'
-                    USING ERRCODE = '23514',
-                          CONSTRAINT = 'shifts_within_employee_availability';
-            END IF;
-        END IF;
-    ELSIF TG_TABLE_NAME = 'employee_availability' THEN
-        -- A new window cannot leave a scheduled shift uncovered. Existing windows
-        -- may already cover a shift; the new window can cover additional shifts.
+    IF TG_TABLE_NAME = 'shifts' AND NEW.status = 'SCHEDULED' THEN
         IF EXISTS (
-            SELECT 1 FROM shifts s
-            WHERE s.employee_id = NEW.employee_id
-              AND s.status = 'SCHEDULED'
-              AND NOT (
-                  (s.starts_at >= NEW.starts_at AND s.ends_at <= NEW.ends_at)
-                  OR EXISTS (
-                      SELECT 1 FROM employee_availability a
-                      WHERE a.employee_id = NEW.employee_id
-                        AND a.starts_at <= s.starts_at
-                        AND a.ends_at >= s.ends_at
-                  )
-              )
+            SELECT 1 FROM employee_availability a
+            WHERE a.employee_id = NEW.employee_id
+        ) AND NOT EXISTS (
+            SELECT 1 FROM employee_availability a
+            WHERE a.employee_id = NEW.employee_id
+              AND a.starts_at <= NEW.starts_at
+              AND a.ends_at >= NEW.ends_at
         ) THEN
-            RAISE EXCEPTION 'Availability change would leave a scheduled shift uncovered'
+            RAISE EXCEPTION 'Scheduled shift falls outside employee availability'
                 USING ERRCODE = '23514',
-                      CONSTRAINT = 'availability_covers_existing_shifts';
+                      CONSTRAINT = 'shifts_within_employee_availability';
         END IF;
     END IF;
 
@@ -65,6 +44,8 @@ CREATE TRIGGER enforce_shift_employee_availability
 BEFORE INSERT OR UPDATE ON shifts
 FOR EACH ROW EXECUTE FUNCTION enforce_employee_availability();
 
-CREATE TRIGGER enforce_availability_covers_shifts
+-- This trigger takes the same lock as shift writes. It intentionally does not
+-- reject legacy shifts when an employee first receives availability windows.
+CREATE TRIGGER serialize_employee_availability_writes
 BEFORE INSERT OR UPDATE ON employee_availability
 FOR EACH ROW EXECUTE FUNCTION enforce_employee_availability();
