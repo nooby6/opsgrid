@@ -42,6 +42,12 @@ class ShiftController(private val service: ShiftService) {
         jwt.requireActorId()
     ).toResponse()
 
+    @GetMapping
+    fun scheduleWindow(
+        @RequestParam startsAt: OffsetDateTime,
+        @RequestParam endsAt: OffsetDateTime
+    ) = service.findSchedule(startsAt, endsAt).map { it.toResponse() }
+
     @GetMapping("/{id}")
     fun get(@PathVariable id: UUID) = service.find(id).toResponse()
 
