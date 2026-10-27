@@ -20,19 +20,21 @@ BEGIN
     -- inserts/updates must fit inside a configured window.
     PERFORM pg_advisory_xact_lock(hashtextextended(NEW.employee_id::text, 0));
 
-    IF TG_TABLE_NAME = 'shifts' AND NEW.status = 'SCHEDULED' THEN
-        IF EXISTS (
-            SELECT 1 FROM employee_availability a
-            WHERE a.employee_id = NEW.employee_id
-        ) AND NOT EXISTS (
-            SELECT 1 FROM employee_availability a
-            WHERE a.employee_id = NEW.employee_id
-              AND a.starts_at <= NEW.starts_at
-              AND a.ends_at >= NEW.ends_at
-        ) THEN
-            RAISE EXCEPTION 'Scheduled shift falls outside employee availability'
-                USING ERRCODE = '23514',
-                      CONSTRAINT = 'shifts_within_employee_availability';
+    IF TG_TABLE_NAME = 'shifts' THEN
+        IF NEW.status = 'SCHEDULED' THEN
+            IF EXISTS (
+                SELECT 1 FROM employee_availability a
+                WHERE a.employee_id = NEW.employee_id
+            ) AND NOT EXISTS (
+                SELECT 1 FROM employee_availability a
+                WHERE a.employee_id = NEW.employee_id
+                  AND a.starts_at <= NEW.starts_at
+                  AND a.ends_at >= NEW.ends_at
+            ) THEN
+                RAISE EXCEPTION 'Scheduled shift falls outside employee availability'
+                    USING ERRCODE = '23514',
+                          CONSTRAINT = 'shifts_within_employee_availability';
+            END IF;
         END IF;
     END IF;
 
