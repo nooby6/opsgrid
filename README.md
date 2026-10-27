@@ -27,6 +27,7 @@ Implemented:
 - Audit writes participate in the same transaction as the business mutation
 - Stateless JWT resource-server authentication with role-based authorization for employee, shift and leave mutations
 - Shift and leave audit actors come from the validated JWT subject rather than a caller-controlled header
+- Department-level staffing-hours reporting over a requested time window
 - Validation and API error handling, including PostgreSQL exclusion violations mapped to stable HTTP 409 responses
 - Unit and integration tests
 - GitHub Actions CI
@@ -55,13 +56,21 @@ Retrieve one employee's schedule with `GET /api/v1/shifts/employee/{employeeId}?
 
 Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`.
 
+Retrieve staffing hours by department with:
+
+```http
+GET /api/v1/reports/staffing-hours?startsAt=2026-10-20T08:00:00Z&endsAt=2026-10-20T16:00:00Z
+```
+
+The report returns each department with its distinct employee count, scheduled shift count, and total scheduled hours. Only scheduled shifts overlapping the requested window are counted, and each shift's contribution is clipped to that window. Departments with no matching scheduled shifts are omitted. The end timestamp must be later than the start timestamp.
+
 All API routes require a valid bearer access token from an OpenID Connect provider. Configure `JWT_ISSUER_URI` and `JWT_JWK_SET_URI`; the defaults point to a local Keycloak realm placeholder and do not provision an identity provider. Shift and leave audit records use the authenticated token's `sub` claim. The API no longer trusts a caller-supplied `X-Actor-Id` header.
 
 Role claims are read from either a top-level `roles` array or Keycloak's `realm_access.roles` array. Required roles:
 - `POST /api/v1/employees`: `ADMIN` or `HR`
 - Create, update and cancel shifts: `ADMIN` or `SCHEDULER`
 - Create and cancel leave: `ADMIN` or `HR`
-- Read endpoints: any authenticated user
+- Read endpoints, including staffing reports: any authenticated user
 
 The API is stateless and validates JWT signatures using the configured JWK set, plus the configured issuer. Role names are mapped to Spring authorities such as `ROLE_SCHEDULER`. This repository configures the resource server; you must still provision an identity provider, users, clients, and role assignments in your deployment.
 

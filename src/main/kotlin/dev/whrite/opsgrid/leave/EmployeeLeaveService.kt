@@ -15,6 +15,8 @@ data class CreateLeaveCommand(
 )
 class LeaveConflictException(message: String) : RuntimeException(message)
 class LeaveNotFoundException(message: String) : RuntimeException(message)
+class LeaveEmployeeNotFoundException(message: String) : RuntimeException(message)
+class LeaveEmployeeInactiveException(message: String) : RuntimeException(message)
 
 @Service
 class EmployeeLeaveService(
@@ -27,8 +29,10 @@ class EmployeeLeaveService(
         validateWindow(command.startsAt, command.endsAt)
         require(command.reason.isNotBlank()) { "Leave reason is required" }
         val employee = employees.findById(command.employeeId)
-            .orElseThrow { RuntimeException("Employee ${command.employeeId} was not found") }
-        check(employee.active) { "Inactive employees cannot receive leave" }
+            .orElseThrow { LeaveEmployeeNotFoundException("Employee ${command.employeeId} was not found") }
+        if (!employee.active) {
+            throw LeaveEmployeeInactiveException("Inactive employees cannot receive leave")
+        }
         if (leaves.hasConflict(employee.id, command.startsAt, command.endsAt)) {
             throw LeaveConflictException("Employee already has approved leave overlapping this time window")
         }

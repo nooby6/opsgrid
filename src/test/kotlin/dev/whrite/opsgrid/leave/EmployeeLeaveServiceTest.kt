@@ -101,6 +101,39 @@ class EmployeeLeaveServiceTest {
         )
     }
 
+
+    @Test
+    fun approvalRejectsMissingEmployeeWithDomainException() {
+        val employeeId = UUID.randomUUID()
+        whenever(employees.findById(employeeId)).thenReturn(Optional.empty())
+
+        assertThrows(LeaveEmployeeNotFoundException::class.java) {
+            service.approve(
+                CreateLeaveCommand(employeeId, startsAt, endsAt, "Annual leave"),
+                "operator-2"
+            )
+        }
+
+        verifyNoInteractions(leaves, auditLog)
+    }
+
+    @Test
+    fun approvalRejectsInactiveEmployeeWithDomainException() {
+        val employeeId = UUID.randomUUID()
+        val inactiveEmployee = employee(employeeId).apply { active = false }
+        whenever(employees.findById(employeeId)).thenReturn(Optional.of(inactiveEmployee))
+
+        assertThrows(LeaveEmployeeInactiveException::class.java) {
+            service.approve(
+                CreateLeaveCommand(employeeId, startsAt, endsAt, "Annual leave"),
+                "operator-2"
+            )
+        }
+
+        verify(leaves, never()).save(any())
+        verifyNoInteractions(auditLog)
+    }
+
     private fun employee(id: UUID) =
         Employee(id, "EMP-" + id.toString().take(8), "Test", "Employee", "Operations")
 }

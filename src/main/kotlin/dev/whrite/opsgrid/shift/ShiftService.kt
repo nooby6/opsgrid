@@ -1,6 +1,8 @@
 package dev.whrite.opsgrid.shift
 
 import dev.whrite.opsgrid.audit.AuditLogService
+import dev.whrite.opsgrid.availability.EmployeeAvailabilityConflictException
+import dev.whrite.opsgrid.availability.EmployeeAvailabilityRepository
 import dev.whrite.opsgrid.employee.EmployeeRepository
 import dev.whrite.opsgrid.leave.EmployeeLeaveRepository
 import org.springframework.stereotype.Service
@@ -20,6 +22,7 @@ class ShiftService(
     private val employees: EmployeeRepository,
     private val shifts: ShiftRepository,
     private val leaves: EmployeeLeaveRepository,
+    private val availability: EmployeeAvailabilityRepository,
     private val auditLog: AuditLogService
 ) {
     @Transactional
@@ -30,6 +33,7 @@ class ShiftService(
         if (!employee.active) {
             throw EmployeeInactiveException("Inactive employees cannot be scheduled")
         }
+        validateAvailability(employee.id, command.startsAt, command.endsAt)
         if (shifts.hasConflict(employee.id, command.startsAt, command.endsAt) ||
             leaves.hasConflict(employee.id, command.startsAt, command.endsAt)
         ) {
@@ -49,18 +53,10 @@ class ShiftService(
         val shift = shifts.findById(id)
             .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
         check(shift.status == ShiftStatus.SCHEDULED) { "Cancelled shifts cannot be updated" }
+        validateAvailability(shift.employee.id, command.startsAt, command.endsAt)
 
-        val hasShiftConflict = shifts.hasConflict(
-            shift.employee.id,
-            command.startsAt,
-            command.endsAt,
-            shift.id
-        )
-        val hasLeaveConflict = leaves.hasConflict(
-            shift.employee.id,
-            command.startsAt,
-            command.endsAt
-        )
+        val hasShiftConflict = shifts.hasConflict(shift.employee.id, command.startsAt, command.endsAt, shift.id)
+        val hasLeaveConflict = leaves.hasConflict(shift.employee.id, command.startsAt, command.endsAt)
         if (hasShiftConflict || hasLeaveConflict) {
             throw ShiftConflictException(
                 "Employee ${shift.employee.employeeNumber} has a scheduling conflict in this time window"
@@ -91,22 +87,17 @@ class ShiftService(
         .orElseThrow { ShiftNotFoundException("Shift $id was not found") }
 
     @Transactional(readOnly = true)
-    fun findEmployeeSchedule(
-        employeeId: UUID,
-        startsAt: OffsetDateTime,
-        endsAt: OffsetDateTime
-    ): List<Shift> {
+    fun findEmployeeSchedule(employeeId: UUID, startsAt: OffsetDateTime, endsAt: OffsetDateTime): List<Shift> {
         validateWindow(startsAt, endsAt)
         if (!employees.existsById(employeeId)) {
             throw EmployeeNotFoundException("Employee $employeeId was not found")
         }
         return shifts.findAllByEmployeeIdAndStartsAtLessThanAndEndsAtGreaterThanOrderByStartsAtAsc(
-            employeeId,
-            endsAt,
-            startsAt
+            employeeId, endsAt, startsAt
         )
     }
 
+<<<<<<< HEAD
     @Transactional(readOnly = true)
     fun findSchedule(startsAt: OffsetDateTime, endsAt: OffsetDateTime): List<Shift> {
         validateWindow(startsAt, endsAt)
@@ -115,6 +106,20 @@ class ShiftService(
             startsAt,
             ShiftStatus.SCHEDULED
         )
+=======
+    private fun validateAvailability(employeeId: UUID, startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
+        // Existing employees without configured availability retain their current behaviour.
+        // Once availability windows exist, every scheduled shift must fit wholly inside one window.
+        if (availability.existsByEmployeeId(employeeId) &&
+            !availability.existsByEmployeeIdAndStartsAtLessThanEqualAndEndsAtGreaterThanEqual(
+                employeeId, startsAt, endsAt
+            )
+        ) {
+            throw EmployeeAvailabilityConflictException(
+                "Shift must fit entirely within an availability window for employee $employeeId"
+            )
+        }
+>>>>>>> origin/main
     }
 
     private fun snapshot(shift: Shift) = mapOf(
