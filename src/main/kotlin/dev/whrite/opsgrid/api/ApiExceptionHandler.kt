@@ -2,6 +2,8 @@ package dev.whrite.opsgrid.api
 
 import dev.whrite.opsgrid.availability.EmployeeAvailabilityConflictException
 import dev.whrite.opsgrid.leave.LeaveConflictException
+import dev.whrite.opsgrid.leave.LeaveEmployeeInactiveException
+import dev.whrite.opsgrid.leave.LeaveEmployeeNotFoundException
 import dev.whrite.opsgrid.leave.LeaveNotFoundException
 import dev.whrite.opsgrid.shift.EmployeeInactiveException
 import dev.whrite.opsgrid.shift.EmployeeNotFoundException
@@ -42,6 +44,16 @@ class ApiExceptionHandler {
     @ExceptionHandler(ShiftNotFoundException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     fun shiftNotFound(ex: ShiftNotFoundException) = ApiError("SHIFT_NOT_FOUND", ex.message ?: "Shift not found")
+
+    @ExceptionHandler(LeaveEmployeeNotFoundException::class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    fun leaveEmployeeNotFound(ex: LeaveEmployeeNotFoundException) =
+        ApiError("EMPLOYEE_NOT_FOUND", ex.message ?: "Employee not found")
+
+    @ExceptionHandler(LeaveEmployeeInactiveException::class)
+    @ResponseStatus(HttpStatus.CONFLICT)
+    fun inactiveLeaveEmployee(ex: LeaveEmployeeInactiveException) =
+        ApiError("EMPLOYEE_INACTIVE", ex.message ?: "Inactive employees cannot receive leave")
 
     @ExceptionHandler(LeaveNotFoundException::class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
