@@ -97,7 +97,6 @@ class ShiftService(
         )
     }
 
-<<<<<<< HEAD
     @Transactional(readOnly = true)
     fun findSchedule(startsAt: OffsetDateTime, endsAt: OffsetDateTime): List<Shift> {
         validateWindow(startsAt, endsAt)
@@ -106,7 +105,8 @@ class ShiftService(
             startsAt,
             ShiftStatus.SCHEDULED
         )
-=======
+    }
+
     private fun validateAvailability(employeeId: UUID, startsAt: OffsetDateTime, endsAt: OffsetDateTime) {
         // Existing employees without configured availability retain their current behaviour.
         // Once availability windows exist, every scheduled shift must fit wholly inside one window.
@@ -119,7 +119,6 @@ class ShiftService(
                 "Shift must fit entirely within an availability window for employee $employeeId"
             )
         }
->>>>>>> origin/main
     }
 
     private fun snapshot(shift: Shift) = mapOf(
