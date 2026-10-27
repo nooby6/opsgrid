@@ -43,4 +43,10 @@ interface ShiftRepository : JpaRepository<Shift, UUID> {
         endsAt: OffsetDateTime,
         startsAt: OffsetDateTime
     ): List<Shift>
+
+    fun findAllByStartsAtLessThanAndEndsAtGreaterThanAndStatusOrderByStartsAtAsc(
+        endsAt: OffsetDateTime,
+        startsAt: OffsetDateTime,
+        status: ShiftStatus
+    ): List<Shift>
 }

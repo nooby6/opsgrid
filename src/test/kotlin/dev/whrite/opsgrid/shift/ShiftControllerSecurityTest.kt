@@ -15,6 +15,7 @@ import org.springframework.http.MediaType
 import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt
 import org.springframework.test.web.servlet.MockMvc
+import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.OffsetDateTime
@@ -27,6 +28,34 @@ class ShiftControllerSecurityTest @Autowired constructor(
 ) {
     @MockBean
     private lateinit var service: ShiftService
+
+    @Test
+    fun authenticatedEmployeeCanReadScheduleWindow() {
+        val employeeId = UUID.randomUUID()
+        val employee = Employee(employeeId, "EMP-READ-01", "Test", "Employee", "Operations")
+        val startsAt = OffsetDateTime.parse("2026-10-20T08:00:00Z")
+        val endsAt = OffsetDateTime.parse("2026-10-20T16:00:00Z")
+        val shift = Shift(UUID.randomUUID(), employee, startsAt, endsAt)
+        whenever(service.findSchedule(startsAt, endsAt)).thenReturn(listOf(shift))
+
+        mockMvc.perform(
+            get("/api/v1/shifts")
+                .param("startsAt", startsAt.toString())
+                .param("endsAt", endsAt.toString())
+                .with(jwt().authorities(SimpleGrantedAuthority("ROLE_EMPLOYEE")))
+        ).andExpect(status().isOk)
+
+        verify(service).findSchedule(startsAt, endsAt)
+    }
+
+    @Test
+    fun rejectsUnauthenticatedScheduleRead() {
+        mockMvc.perform(
+            get("/api/v1/shifts")
+                .param("startsAt", "2026-10-20T08:00:00Z")
+                .param("endsAt", "2026-10-20T16:00:00Z")
+        ).andExpect(status().isUnauthorized)
+    }
 
     @Test
     fun rejectsUnauthenticatedShiftMutation() {
