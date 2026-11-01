@@ -68,6 +68,7 @@ All API routes require a valid bearer access token from an OpenID Connect provid
 
 Role claims are read from either a top-level `roles` array or Keycloak's `realm_access.roles` array. Required roles:
 - `POST /api/v1/employees`: `ADMIN` or `HR`
+- `POST /api/v1/employees/{employeeId}/availability`: `ADMIN`, `HR` or `SCHEDULER`
 - Create, update and cancel shifts: `ADMIN` or `SCHEDULER`
 - Create and cancel leave: `ADMIN` or `HR`
 - Read endpoints, including staffing reports: any authenticated user

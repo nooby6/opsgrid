@@ -23,6 +23,7 @@ class SecurityConfig {
         http.sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
         http.authorizeHttpRequests {
             it.requestMatchers(HttpMethod.POST, "/api/v1/employees").hasAnyRole("ADMIN", "HR")
+            it.requestMatchers(HttpMethod.POST, "/api/v1/employees/*/availability").hasAnyRole("ADMIN", "HR", "SCHEDULER")
             it.requestMatchers(
                 HttpMethod.POST,
                 "/api/v1/shifts"
