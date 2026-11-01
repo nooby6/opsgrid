@@ -16,7 +16,6 @@ import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import java.time.OffsetDateTime
-import java.util.Optional
 import java.util.UUID
 
 @WebMvcTest(controllers = [EmployeeAvailabilityController::class])
