@@ -37,6 +37,7 @@ class EmployeeAvailabilityTriggerIntegrationTest {
                 connection.createStatement().use {
                     it.execute(Files.readString(Path.of("src/main/resources/db/migration/V5__prevent_shift_leave_overlap.sql")))
                     it.execute(Files.readString(Path.of("src/main/resources/db/migration/V6__employee_availability_windows.sql")))
+                    it.execute(Files.readString(Path.of("src/main/resources/db/migration/V7__availability_no_overlaps.sql")))
                 }
 
                 connection.prepareStatement(
@@ -67,6 +68,26 @@ class EmployeeAvailabilityTriggerIntegrationTest {
                     assertEquals(1, statement.executeUpdate(), "availability should be configurable despite legacy shifts")
                 }
 
+                var availabilityOverlapRejected = false
+                try {
+                    insertAvailability(
+                        connection, employeeId,
+                        "2026-10-12T15:00:00Z", "2026-10-12T17:00:00Z"
+                    )
+                } catch (error: SQLException) {
+                    availabilityOverlapRejected = error.sqlState == "23P01"
+                    if (!availabilityOverlapRejected) throw error
+                }
+                assertTrue(
+                    availabilityOverlapRejected,
+                    "overlapping availability windows for one employee must be rejected"
+                )
+
+                insertAvailability(
+                    connection, employeeId,
+                    "2026-10-12T16:00:00Z", "2026-10-12T18:00:00Z"
+                )
+
                 var rejected = false
                 try {
                     insertShift(
@@ -88,6 +109,24 @@ class EmployeeAvailabilityTriggerIntegrationTest {
             DriverManager.getConnection(url, user, password).use { admin ->
                 admin.createStatement().use { it.execute("DROP SCHEMA IF EXISTS \"$schema\" CASCADE") }
             }
+        }
+    }
+
+    private fun insertAvailability(
+        connection: java.sql.Connection,
+        employeeId: UUID,
+        startsAt: String,
+        endsAt: String
+    ) {
+        connection.prepareStatement(
+            """INSERT INTO employee_availability (id, employee_id, starts_at, ends_at)
+               VALUES (?, ?, ?, ?)"""
+        ).use { statement ->
+            statement.setObject(1, UUID.randomUUID())
+            statement.setObject(2, employeeId)
+            statement.setObject(3, OffsetDateTime.parse(startsAt))
+            statement.setObject(4, OffsetDateTime.parse(endsAt))
+            statement.executeUpdate()
         }
     }
 
