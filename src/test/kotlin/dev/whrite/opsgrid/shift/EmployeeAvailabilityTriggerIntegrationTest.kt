@@ -92,7 +92,7 @@ class EmployeeAvailabilityTriggerIntegrationTest {
                 try {
                     insertShift(
                         connection, employeeId,
-                        "2026-10-12T16:00:00Z", "2026-10-12T17:00:00Z"
+                        "2026-10-12T18:00:00Z", "2026-10-12T19:00:00Z"
                     )
                 } catch (error: SQLException) {
                     rejected = error.sqlState == "23514"
