@@ -34,6 +34,17 @@ class ApiExceptionHandlerTest {
     }
 
     @Test
+    fun mapsAvailabilityExclusionViolationToAvailabilityConflict() {
+        val response = handler.dataIntegrityViolation(
+            dataIntegrityFailure("23P01", "employee_availability_no_overlapping_windows")
+        )
+
+        assertEquals(HttpStatus.CONFLICT, response.statusCode)
+        assertEquals("EMPLOYEE_AVAILABILITY_CONFLICT", response.body?.code)
+        assertEquals("The availability window overlaps an existing window", response.body?.message)
+    }
+
+    @Test
     fun doesNotExposeDatabaseDetailsForOtherIntegrityViolations() {
         val response = handler.dataIntegrityViolation(
             dataIntegrityFailure("23505", "employees_employee_number_key")
@@ -41,12 +52,8 @@ class ApiExceptionHandlerTest {
 
         assertEquals(HttpStatus.CONFLICT, response.statusCode)
         assertEquals("DATA_INTEGRITY_VIOLATION", response.body?.code)
-        assertEquals(
-            "The request violates a data integrity constraint",
-            response.body?.message
-        )
+        assertEquals("The request violates a data integrity constraint", response.body?.message)
     }
-
 
     @Test
     fun mapsMissingEmployeeDuringLeaveApprovalToNotFound() {
