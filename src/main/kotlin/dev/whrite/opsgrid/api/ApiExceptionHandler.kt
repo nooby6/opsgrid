@@ -73,6 +73,8 @@ class ApiExceptionHandler {
                 ApiError("SHIFT_CONFLICT", "The shift overlaps an existing scheduled shift")
             sqlState == "23P01" && constraintName == LEAVE_EXCLUSION_CONSTRAINT ->
                 ApiError("LEAVE_CONFLICT", "The leave window overlaps existing approved leave")
+            sqlState == "23P01" && constraintName == AVAILABILITY_EXCLUSION_CONSTRAINT ->
+                ApiError("EMPLOYEE_AVAILABILITY_CONFLICT", "The availability window overlaps an existing window")
             sqlState == "23514" && constraintName == AVAILABILITY_CONSTRAINT ->
                 ApiError("EMPLOYEE_AVAILABILITY_CONFLICT", "A scheduled shift must fit within employee availability")
             sqlState == "23P01" ->
@@ -89,6 +91,7 @@ class ApiExceptionHandler {
     private companion object {
         const val SHIFT_EXCLUSION_CONSTRAINT = "shifts_no_overlapping_employee_windows"
         const val LEAVE_EXCLUSION_CONSTRAINT = "leave_no_overlapping_employee_windows"
+        const val AVAILABILITY_EXCLUSION_CONSTRAINT = "employee_availability_no_overlapping_windows"
         const val AVAILABILITY_CONSTRAINT = "shifts_within_employee_availability"
     }
 }

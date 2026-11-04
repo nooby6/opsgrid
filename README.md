@@ -18,7 +18,7 @@ Implemented:
 - REST API foundation
 - Transactional shift scheduling
 - Service-layer overlap checks for clear API errors
-- PostgreSQL exclusion constraints for overlapping shifts and overlapping approved leave
+- PostgreSQL exclusion constraints for overlapping shifts, approved leave and employee availability windows
 - Cross-table trigger guards prevent a scheduled shift from overlapping approved leave (and vice versa), using a transaction-scoped per-employee advisory lock
 - Concurrent PostgreSQL integration tests prove same-table and cross-table overlapping scheduling writes cannot both commit
 - Time-window schedule queries across employees, returning scheduled shifts in chronological order
@@ -54,7 +54,7 @@ The response is ordered by shift start time. A shift is included when it overlap
 
 Retrieve one employee's schedule with `GET /api/v1/shifts/employee/{employeeId}?startsAt=<ISO-8601>&endsAt=<ISO-8601>`.
 
-Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`.
+Create or cancel leave with `POST /api/v1/leave` and `DELETE /api/v1/leave/{id}`. Configure employee availability with `POST /api/v1/employees/{employeeId}/availability` and retrieve it with `GET` on the same path. Availability windows for one employee may touch but cannot overlap.
 
 Retrieve staffing hours by department with:
 
@@ -94,7 +94,7 @@ The API starts on port 8080.
 
 The service checks provide a useful conflict response, but they are not the concurrency boundary. PostgreSQL enforces the invariant with GiST exclusion constraints using `tstzrange(..., '[)')`; the half-open range allows adjacent shifts while rejecting overlaps. Migration `V3__schedule_consistency.sql` applies these constraints to scheduled shifts and approved leave. `ConcurrentShiftConflictIntegrationTest` synchronizes two transactions and asserts exactly one insert commits.
 
-Migration `V4__audit_events.sql` adds the audit event table. Migration `V5__prevent_shift_leave_overlap.sql` closes the cross-table race between shift creation/update and leave approval by serializing each employee's scheduling writes inside PostgreSQL and checking the opposite table before commit. Audit writes use the same transaction as each shift or leave mutation, so a failed mutation or failed audit write rolls back the whole operation. Integration tests verify that behaviour.
+Migration `V4__audit_events.sql` adds the audit event table. Migration `V7__availability_no_overlaps.sql` applies a PostgreSQL GiST exclusion constraint to prevent overlapping availability windows for an employee while allowing adjacent windows. Migration `V5__prevent_shift_leave_overlap.sql` closes the cross-table race between shift creation/update and leave approval by serializing each employee's scheduling writes inside PostgreSQL and checking the opposite table before commit. Audit writes use the same transaction as each shift or leave mutation, so a failed mutation or failed audit write rolls back the whole operation. Integration tests verify that behaviour.
 
 ## Roadmap
 
